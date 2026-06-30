@@ -1,0 +1,696 @@
+<!DOCTYPE html>
+<html lang="zh-HK">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>香港巴士路線搜尋器</title>
+  <style>
+    :root {
+      --primary-color: #0056b3;
+      --mtr-color: #9d2235;
+      --bg-color: #f4f7f6;
+      --box-bg: #ffffff;
+      --text-color: #333333;
+      --border-color: #dddddd;
+      --muted: #777;
+      --danger: #d9534f;
+      --success: #155724;
+      --info: #004085;
+      --warn: #856404;
+    }
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body {
+      font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif, 'Microsoft JhengHei';
+      background: var(--bg-color);
+      color: var(--text-color);
+      max-width: 980px;
+      margin: 0 auto;
+      padding: 16px;
+    }
+    .container {
+      background: var(--box-bg);
+      padding: 24px;
+      border-radius: 12px;
+      box-shadow: 0 4px 12px rgba(0,0,0,.08);
+    }
+    h1 {
+      text-align: center;
+      color: var(--primary-color);
+      font-size: 24px;
+      margin: 0 0 8px;
+    }
+    .last-update {
+      text-align: center;
+      font-size: 12px;
+      color: var(--muted);
+      margin-bottom: 18px;
+    }
+    .form-group { margin-bottom: 18px; }
+    .company-row {
+      display: flex;
+      gap: 18px;
+      flex-wrap: wrap;
+      align-items: center;
+    }
+    label {
+      font-weight: 700;
+      cursor: pointer;
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+    }
+    input[type="text"] {
+      width: 100%;
+      padding: 12px;
+      margin-top: 10px;
+      border: 1px solid var(--border-color);
+      border-radius: 8px;
+      font-size: 16px;
+      text-transform: uppercase;
+      outline: none;
+    }
+    input[type="text"]:focus {
+      border-color: var(--primary-color);
+      box-shadow: 0 0 0 3px rgba(0,86,179,.08);
+    }
+    button {
+      width: 100%;
+      padding: 13px;
+      background: var(--primary-color);
+      color: white;
+      border: none;
+      border-radius: 8px;
+      font-size: 16px;
+      cursor: pointer;
+      transition: background .2s;
+    }
+    button:hover { background: #004494; }
+    button:disabled { background: #c8c8c8; cursor: not-allowed; }
+    #loading {
+      text-align: center;
+      font-weight: 700;
+      color: var(--danger);
+      margin: 15px 0;
+      display: none;
+    }
+    .direction-block {
+      margin-top: 22px;
+      border: 1px solid var(--border-color);
+      border-radius: 10px;
+      overflow: hidden;
+      background: #fff;
+    }
+    .direction-title {
+      background: var(--primary-color);
+      color: white;
+      padding: 11px 15px;
+      font-size: 16px;
+      font-weight: 700;
+    }
+    .mtr-title { background: var(--mtr-color); }
+    .stop-list {
+      list-style: none;
+      padding: 0;
+      margin: 0;
+    }
+    .stop-list li {
+      padding: 12px 15px;
+      border-bottom: 1px solid var(--border-color);
+      display: flex;
+      gap: 12px;
+      align-items: flex-start;
+      flex-wrap: wrap;
+    }
+    .stop-list li:last-child { border-bottom: none; }
+    .stop-seq {
+      display: inline-flex;
+      width: 30px;
+      height: 30px;
+      line-height: 30px;
+      text-align: center;
+      background: #e9ecef;
+      border-radius: 50%;
+      font-size: 14px;
+      font-weight: 700;
+      justify-content: center;
+      align-items: center;
+      flex-shrink: 0;
+    }
+    .stop-info { flex: 1; min-width: 200px; }
+    .stop-name-zh { font-size: 15px; font-weight: 600; }
+    .stop-name-en { font-size: 12px; color: var(--muted); margin-top: 2px; }
+    .stop-id-label { font-size: 11px; color: #999; margin-top: 2px; word-break: break-all; }
+    .eta-area {
+      display: flex;
+      gap: 6px;
+      flex-wrap: wrap;
+      align-items: center;
+      min-width: 140px;
+    }
+    .eta-tag {
+      padding: 3px 10px;
+      border-radius: 12px;
+      font-size: 12px;
+      font-weight: 700;
+      white-space: nowrap;
+    }
+    .eta-arriving { background: #d4edda; color: var(--success); }
+    .eta-soon { background: #cce5ff; color: var(--info); }
+    .eta-mid { background: #fff3cd; color: var(--warn); }
+    .eta-far { background: #f0f0f0; color: #555; }
+    .error {
+      color: red;
+      text-align: center;
+      font-weight: 700;
+      margin-top: 20px;
+      padding: 12px;
+      background: #fff5f5;
+      border: 1px solid #ffd6d6;
+      border-radius: 8px;
+    }
+    .badge {
+      display: inline-block;
+      font-size: 11px;
+      background: #f8d7da;
+      color: #721c24;
+      padding: 2px 8px;
+      border-radius: 999px;
+      font-weight: 700;
+      margin-left: 6px;
+    }
+    .notice {
+      background: #fff3cd;
+      color: #856404;
+      padding: 10px 15px;
+      border-radius: 8px;
+      margin-top: 10px;
+      font-size: 14px;
+      border: 1px solid #ffe69c;
+    }
+    .small-note {
+      margin-top: 10px;
+      color: var(--muted);
+      font-size: 13px;
+      line-height: 1.5;
+    }
+    .route-links {
+      margin-top: 16px;
+      display: flex;
+      gap: 8px;
+      flex-wrap: wrap;
+    }
+    .route-link-chip {
+      display: inline-block;
+      padding: 6px 14px;
+      background: #e8eaf6;
+      color: var(--primary-color);
+      border-radius: 20px;
+      font-size: 14px;
+      font-weight: 600;
+      cursor: pointer;
+      transition: background 0.2s;
+      border: none;
+    }
+    .route-link-chip:hover {
+      background: #c5cae9;
+    }
+    .route-link-chip.mtr-chip {
+      background: #fce4ec;
+      color: var(--mtr-color);
+    }
+    .route-link-chip.mtr-chip:hover {
+      background: #f8bbd0;
+    }
+  </style>
+</head>
+<body>
+<div class="container">
+  <h1>🚌 巴士路線搜尋器</h1>
+  <div class="last-update" id="lastUpdate">載入中...</div>
+
+  <div class="form-group">
+    <div class="company-row">
+      <label><input type="radio" name="company" value="ctb" checked> 城巴 (Citybus)</label>
+      <label><input type="radio" name="company" value="mtr"> 港鐵巴士 (MTR Bus)</label>
+    </div>
+  </div>
+
+  <div class="form-group">
+    <input type="text" id="route_input" placeholder="輸入路線號碼，例如：8X 或 K65" autocomplete="off" />
+  </div>
+
+  <button id="search_btn" onclick="searchRoute()">搜尋路線</button>
+
+  <div class="route-links" id="quickLinks"></div>
+
+  <div id="loading">正在提取數據，請稍候...</div>
+  <div id="result"></div>
+  <div class="small-note">
+    城巴資料來自 data.gov.hk 即時 API；港鐵巴士站點資料每日自動更新，ETA 即時查詢。
+  </div>
+</div>
+
+<script>
+// ============================================
+// 全域變數
+// ============================================
+const CTB_BASE = 'https://rt.data.gov.hk/v2/transport/citybus';
+const MTR_ETA_URL = 'https://rt.data.gov.hk/v1/transport/mtr/bus/getSchedule';
+
+let MTR_STOPS_LIST = [];        // 由本地 JSON 載入
+let MTR_ROUTES_INDEX = {};      // { stopId: [[route, stopId, dest], ...] }
+let VERSION_INFO = null;
+let CTB_STOP_CACHE = new Map();
+
+// ============================================
+// 工具函數
+// ============================================
+function escapeHtml(s) {
+  return String(s ?? '')
+    .replaceAll('&', '&amp;')
+    .replaceAll('<', '&lt;')
+    .replaceAll('>', '&gt;')
+    .replaceAll('"', '&quot;')
+    .replaceAll("'", '&#39;');
+}
+
+function formatDirection(dir, route) {
+  const d = (dir || '').toUpperCase();
+  if (d === 'O' || d === 'OUTBOUND') return `⬇ 去程 — ${route}`;
+  if (d === 'I' || d === 'INBOUND') return `⬆ 回程 — ${route}`;
+  return `${dir || '未知方向'} — ${route}`;
+}
+
+// ============================================
+// 載入本地 JSON 資料
+// ============================================
+async function loadMTRData() {
+  try {
+    const [stopsRes, routesRes, versionRes] = await Promise.all([
+      fetch('./data/stops.json'),
+      fetch('./data/routes.json'),
+      fetch('./data/version.json'),
+    ]);
+
+    if (stopsRes.ok) MTR_STOPS_LIST = await stopsRes.json();
+    if (routesRes.ok) MTR_ROUTES_INDEX = await routesRes.json();
+    if (versionRes.ok) VERSION_INFO = await versionRes.json();
+
+    // 更新最後更新時間
+    const el = document.getElementById('lastUpdate');
+    if (VERSION_INFO && VERSION_INFO.updatedDisplay) {
+      el.textContent = `港鐵巴士資料更新：${VERSION_INFO.updatedDisplay} | 共 ${VERSION_INFO.stopCount} 個車站`;
+    } else if (MTR_STOPS_LIST.length > 0) {
+      el.textContent = `港鐵巴士資料：共 ${MTR_STOPS_LIST.length} 個車站`;
+    }
+
+    // 生成快速路線連結
+    buildQuickLinks();
+
+    console.log(`✅ 港鐵資料載入完成：${MTR_STOPS_LIST.length} 個車站，${Object.keys(MTR_ROUTES_INDEX).length} 個車站有路線`);
+  } catch (err) {
+    console.warn('載入港鐵本地資料失敗，會嘗試直接下載 CSV:', err);
+    document.getElementById('lastUpdate').textContent = '港鐵巴士資料：離線模式';
+  }
+}
+
+// ============================================
+// 快速路線連結
+// ============================================
+function buildQuickLinks() {
+  // 由 routes.json 提取所有路線編號
+  const routeSet = new Set();
+  for (const stopId of Object.keys(MTR_ROUTES_INDEX)) {
+    for (const [routeNo] of MTR_ROUTES_INDEX[stopId]) {
+      routeSet.add(routeNo);
+    }
+  }
+  const mtrRoutes = [...routeSet].sort();
+
+  const ctbRoutes = ['8X', '10', '11', '12', '12A', '12M', '13', '15', '23', '25', '25A', '26', '27',
+    '37A', '37B', '37X', '38', '40', '40M', '41A', '42', '42C', '47P', '48', '70', '70P',
+    '71', '71P', '72', '72A', '73', '75', '76', '77', '85', '90', '90B', '90C', '91', '93',
+    '93A', '93C', '94A', '95', '95C', '95P', '96', '97', '98', '99', '592', '595', '260',
+    '511', '629', '780', '788', '789', '930', '930A', '930B', '930X', '933', '948', '948A',
+    '948B', '948P', '948X', '952', '952C', '952P', '955', '962', '962A', '962C', '962G',
+    '962P', '962X', '967', '967X', '969', '969A', '969B', '969C', '969P', '969X', '976',
+    '976A', '986', '989', 'B3', 'B3A', 'B3X', 'B5', 'B7', 'B8', 'E11', 'E11A', 'E11B',
+    'E11S', 'E21', 'E21A', 'E21B', 'E21C', 'E21D', 'E21X', 'E22', 'E22A', 'E22C', 'E22P',
+    'E22S', 'E22X', 'E23', 'E23A', 'H1', 'H2', 'N11', 'N21', 'N21A', 'N23', 'N26', 'N29',
+    'N8X', 'N90', 'N93', 'N962', 'N969', 'X15'];
+
+  let html = '<span style="font-size:13px;color:#777;margin-right:8px;">常用路線：</span>';
+
+  // 城巴常用
+  ctbRoutes.slice(0, 15).forEach(r => {
+    html += `<span class="route-link-chip" onclick="quickSearch('${r}','ctb')">${r}</span>`;
+  });
+
+  html += '<span style="margin:0 4px;">|</span>';
+
+  // 港鐵常用
+  mtrRoutes.slice(0, 10).forEach(r => {
+    html += `<span class="route-link-chip mtr-chip" onclick="quickSearch('${r}','mtr')">${r}</span>`;
+  });
+
+  document.getElementById('quickLinks').innerHTML = html;
+}
+
+function quickSearch(route, company) {
+  document.querySelector(`input[name="company"][value="${company}"]`).checked = true;
+  document.getElementById('route_input').value = route;
+  searchRoute();
+}
+
+// ============================================
+// 城巴搜尋
+// ============================================
+async function fetchJson(url, options = {}) {
+  const res = await fetch(url, options);
+  if (!res.ok) throw new Error(`HTTP ${res.status}`);
+  return await res.json();
+}
+
+async function getCtbStopName(stopId) {
+  if (CTB_STOP_CACHE.has(stopId)) return CTB_STOP_CACHE.get(stopId);
+  try {
+    const d = await fetchJson(`${CTB_BASE}/stop/${encodeURIComponent(stopId)}`);
+    const name = { zh: d.data?.name_tc || stopId, en: d.data?.name_en || '' };
+    CTB_STOP_CACHE.set(stopId, name);
+    return name;
+  } catch {
+    const fallback = { zh: stopId, en: '' };
+    CTB_STOP_CACHE.set(stopId, fallback);
+    return fallback;
+  }
+}
+
+async function searchCTB(route) {
+  const [dataO, dataI] = await Promise.all([
+    fetchJson(`${CTB_BASE}/route-stop/CTB/${encodeURIComponent(route)}/outbound`),
+    fetchJson(`${CTB_BASE}/route-stop/CTB/${encodeURIComponent(route)}/inbound`)
+  ]);
+
+  const allStops = [
+    ...(dataO.data || []).map(s => ({ ...s, dir: 'O' })),
+    ...(dataI.data || []).map(s => ({ ...s, dir: 'I' }))
+  ];
+
+  if (allStops.length === 0) throw new Error('找不到該城巴路線資料');
+
+  const stopIds = [...new Set(allStops.map(s => s.stop))];
+  await Promise.all(stopIds.map(id => getCtbStopName(id)));
+
+  const grouped = {};
+  allStops.forEach(item => {
+    const label = formatDirection(item.dir, route);
+    if (!grouped[label]) grouped[label] = [];
+    const nm = CTB_STOP_CACHE.get(item.stop) || { zh: item.stop, en: '' };
+    grouped[label].push({
+      seq: parseInt(item.seq, 10),
+      nameZh: nm.zh,
+      nameEn: nm.en,
+      stopId: item.stop,
+      etas: []
+    });
+  });
+
+  renderResult(grouped, 'ctb');
+}
+
+// ============================================
+// 港鐵巴士搜尋（使用本地 JSON）
+// ============================================
+async function searchMTR(route) {
+  // 如果本地資料未載入，嘗試載入
+  if (MTR_STOPS_LIST.length === 0) {
+    await loadMTRData();
+  }
+
+  if (MTR_STOPS_LIST.length === 0) {
+    throw new Error('未能載入港鐵巴士站點資料，請重新整理頁面');
+  }
+
+  // 由 routes.json (routesIndex) 搵返呢條路線經過嘅車站
+  // routesIndex 格式: { stopId: [[routeNo, stopId, dest], ...] }
+  const routeStopsMap = new Map(); // stopId -> { seq, dest }
+
+  for (const [stopId, routeArr] of Object.entries(MTR_ROUTES_INDEX)) {
+    for (const [routeNo, , dest] of routeArr) {
+      if (routeNo.toUpperCase() === route) {
+        // 由 stops.json 搵呢個站嘅資料
+        const stopInfo = MTR_STOPS_LIST.find(s => s.id === stopId);
+        if (stopInfo && !routeStopsMap.has(stopId)) {
+          routeStopsMap.set(stopId, {
+            stopId,
+            nameZh: stopInfo.name,
+            nameEn: '',
+            lat: stopInfo.lat,
+            lng: stopInfo.lng,
+            dest: dest,
+          });
+        }
+      }
+    }
+  }
+
+  // 如果 routes.json 搵唔到，fallback 去直接用 CSV 下載
+  let allStops = [];
+  let useFallback = false;
+
+  if (routeStopsMap.size > 0) {
+    // 用本地資料
+    allStops = [...routeStopsMap.values()].map((s, i) => ({
+      dir: s.dest || 'OUTBOUND',
+      seq: i + 1,
+      stopId: s.stopId,
+      nameZh: s.nameZh,
+      nameEn: s.nameEn || '',
+    }));
+  } else {
+    // Fallback: 直接下載 MTR CSV
+    useFallback = true;
+    try {
+      const res = await fetch('https://opendata.mtr.com.hk/data/mtr_bus_stops.csv');
+      if (!res.ok) throw new Error('CSV 下載失敗');
+      const text = await res.text();
+      const rows = parseCSV(text);
+      allStops = rows
+        .filter(s => (s.ROUTE_ID || '').toUpperCase() === route)
+        .map(s => ({
+          dir: (s.DIRECTION || '').toUpperCase(),
+          seq: parseInt(s.STATION_SEQNO || '0', 10),
+          stopId: (s.STATION_ID || '').toUpperCase(),
+          nameZh: s.STATION_NAME_CHI || '',
+          nameEn: s.STATION_NAME_ENG || '',
+        }));
+    } catch (csvErr) {
+      console.warn('CSV fallback 都失敗:', csvErr);
+    }
+  }
+
+  if (allStops.length === 0) throw new Error('找不到該港鐵巴士路線資料');
+
+  // 查詢即時 ETA
+  let etaMap = {};
+  let routeStatusMsg = '';
+
+  try {
+    const etaRes = await fetch(MTR_ETA_URL, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ language: 'zh', routeName: route })
+    });
+
+    if (etaRes.ok) {
+      const etaData = await etaRes.json();
+
+      if (String(etaData.routeStatus) === '3') {
+        routeStatusMsg = etaData.routeStatusRemarkContent || '此路線暫停服務';
+      }
+
+      if (Array.isArray(etaData.busStop)) {
+        etaData.busStop.forEach(s => {
+          const id = (s.busStopId || '').toUpperCase();
+          etaMap[id] = {
+            etas: (s.bus || []).map(b => ({
+              text: b.arrivalTimeText || b.departureTimeText || '',
+              sec: b.arrivalTimeInSecond ?? b.departureTimeInSecond ?? null
+            })).filter(e => e.text || e.sec !== null),
+            suspended: s.isSuspended || '0'
+          };
+        });
+      }
+    }
+  } catch (e) {
+    routeStatusMsg = routeStatusMsg || '即時到站資料暫時未能載入';
+  }
+
+  // 組合結果
+  const grouped = {};
+  allStops.forEach(s => {
+    const label = formatDirection(s.dir, route);
+    const eta = etaMap[s.stopId] || { etas: [], suspended: '0' };
+    if (!grouped[label]) grouped[label] = [];
+    grouped[label].push({
+      seq: s.seq,
+      nameZh: s.nameZh,
+      nameEn: s.nameEn,
+      stopId: s.stopId,
+      etas: eta.etas,
+      suspended: eta.suspended
+    });
+  });
+
+  renderResult(grouped, 'mtr', routeStatusMsg);
+}
+
+// ============================================
+// CSV 解析（Fallback 用）
+// ============================================
+function parseCSV(text) {
+  const cleanText = text.replace(/^\uFEFF/, '');
+  const lines = cleanText.split(/\r?\n/).filter(l => l.trim() !== '');
+  if (lines.length < 2) return [];
+
+  const parseLine = (line) => {
+    const out = [];
+    let cur = '';
+    let inQuotes = false;
+    for (let i = 0; i < line.length; i++) {
+      const ch = line[i];
+      const next = line[i + 1];
+      if (ch === '"' && inQuotes && next === '"') {
+        cur += '"';
+        i++;
+      } else if (ch === '"') {
+        inQuotes = !inQuotes;
+      } else if (ch === ',' && !inQuotes) {
+        out.push(cur);
+        cur = '';
+      } else {
+        cur += ch;
+      }
+    }
+    out.push(cur);
+    return out.map(v => v.trim());
+  };
+
+  const headers = parseLine(lines[0]).map(h => h.replace(/^"|"$/g, ''));
+  const rows = [];
+  for (let i = 1; i < lines.length; i++) {
+    const cols = parseLine(lines[i]);
+    if (cols.length < headers.length) continue;
+    const row = {};
+    headers.forEach((h, j) => row[h] = (cols[j] ?? '').replace(/^"|"$/g, ''));
+    rows.push(row);
+  }
+  return rows;
+}
+
+// ============================================
+// 渲染結果
+// ============================================
+function renderResult(groupedStops, company, notice = '') {
+  const resultDiv = document.getElementById('result');
+  resultDiv.innerHTML = '';
+
+  const directions = Object.keys(groupedStops);
+  if (directions.length === 0) {
+    resultDiv.innerHTML = '<div class="error">找不到該路線，請檢查路線號碼是否正確。</div>';
+    return;
+  }
+
+  const titleClass = company === 'mtr' ? 'direction-title mtr-title' : 'direction-title';
+
+  directions.forEach(dir => {
+    const stops = groupedStops[dir].slice().sort((a, b) => a.seq - b.seq);
+    let html = `<div class="direction-block"><div class="${titleClass}">${escapeHtml(dir)} — 共 ${stops.length} 站</div><ul class="stop-list">`;
+
+    stops.forEach(stop => {
+      let etaHtml = '';
+      if (stop.etas && stop.etas.length > 0) {
+        etaHtml = '<div class="eta-area">';
+        stop.etas.slice(0, 3).forEach(eta => {
+          if (!eta.text && eta.sec == null) return;
+          const sec = eta.sec != null ? parseInt(eta.sec, 10) : null;
+          let text = eta.text || '';
+          let cls = 'eta-far';
+
+          if (sec != null && !Number.isNaN(sec)) {
+            const min = Math.max(0, Math.round(sec / 60));
+            cls = min <= 3 ? 'eta-arriving' : min <= 8 ? 'eta-soon' : min <= 15 ? 'eta-mid' : 'eta-far';
+            text = text || (min === 0 ? '即將抵達' : `${min} 分鐘`);
+          } else {
+            const t = text.toLowerCase();
+            if (t.includes('即將') || t.includes('arriving') || t.includes('departing')) cls = 'eta-arriving';
+          }
+          etaHtml += `<span class="eta-tag ${cls}">${escapeHtml(text)}</span>`;
+        });
+        etaHtml += '</div>';
+      }
+
+      html += `<li>
+        <span class="stop-seq">${escapeHtml(stop.seq)}</span>
+        <div class="stop-info">
+          <div class="stop-name-zh">${escapeHtml(stop.nameZh)}${stop.suspended === '1' ? '<span class="badge">暫停服務</span>' : ''}</div>
+          ${stop.nameEn ? `<div class="stop-name-en">${escapeHtml(stop.nameEn)}</div>` : ''}
+          <div class="stop-id-label">${escapeHtml(stop.stopId || '')}</div>
+        </div>
+        ${etaHtml}
+      </li>`;
+    });
+
+    html += `</ul></div>`;
+    resultDiv.innerHTML += html;
+  });
+
+  if (notice) {
+    resultDiv.innerHTML += `<div class="notice">⚠️ ${escapeHtml(notice)}</div>`;
+  }
+}
+
+// ============================================
+// 主搜尋入口
+// ============================================
+async function searchRoute() {
+  const company = document.querySelector('input[name="company"]:checked').value;
+  const route = document.getElementById('route_input').value.trim().toUpperCase();
+  const resultDiv = document.getElementById('result');
+  const loadingDiv = document.getElementById('loading');
+  const searchBtn = document.getElementById('search_btn');
+
+  if (!route) {
+    alert('請輸入路線號碼！');
+    return;
+  }
+
+  resultDiv.innerHTML = '';
+  loadingDiv.style.display = 'block';
+  searchBtn.disabled = true;
+
+  try {
+    if (company === 'ctb') await searchCTB(route);
+    else await searchMTR(route);
+  } catch (err) {
+    resultDiv.innerHTML = `<div class="error">搜尋失敗：${escapeHtml(err.message)}</div>`;
+  } finally {
+    loadingDiv.style.display = 'none';
+    searchBtn.disabled = false;
+  }
+}
+
+// ============================================
+// 事件監聽
+// ============================================
+document.getElementById('route_input').addEventListener('keydown', e => {
+  if (e.key === 'Enter') searchRoute();
+});
+
+// ============================================
+// 啟動
+// ============================================
+loadMTRData();
+</script>
+</body>
+</html>
