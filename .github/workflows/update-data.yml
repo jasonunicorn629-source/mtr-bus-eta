@@ -2,7 +2,7 @@ name: 每月更新港鐵巴士資料
 
 on:
   schedule:
-    # 每月 1 號 UTC 17:00 = 香港時間 01:00
+    # 每月 1 號 UTC 17:00
     - cron: '0 17 1 * *'
   workflow_dispatch:
 
